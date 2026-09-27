@@ -157,3 +157,38 @@ resource "aws_instance" "app_server" {
     Name = "tier-2-app-server"
   }
 }
+
+# Tier 3 Database Server Firewall
+resource "aws_security_group" "db_sg" {
+  name        = "db-server-sg"
+  vpc_id      = aws_vpc.main_vpc.id
+
+  ingress {
+    description     = "Allow MySQL traffic from Tier 2 ONLY"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_sg.id]
+  }
+
+  egress {
+    description = "Outgoing Traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Tier 3 Database Server (Private EC2)
+resource "aws_instance" "db_server" {
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.private_subnet.id
+  vpc_security_group_ids      = [aws_security_group.db_sg.id]
+  associate_public_ip_address = false
+
+  tags = {
+    Name = "tier-3-db-server"
+  }
+}
