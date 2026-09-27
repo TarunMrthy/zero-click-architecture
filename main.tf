@@ -120,3 +120,40 @@ resource "aws_instance" "web_server" {
 output "web_server_public_ip" {
   value = aws_instance.web_server.public_ip
 }
+
+
+
+# Tier 2 Application Server Firewall
+resource "aws_security_group" "app_sg" {
+  name        = "app-server-sg"
+  vpc_id      = aws_vpc.main_vpc.id
+
+  ingress {
+    description     = "Allow traffic ONLY from Tier 1 Web Server"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web_sg.id]
+  }
+
+  egress {
+    description = "Outgoing Traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Tier 2 Application Server (Private EC2)
+resource "aws_instance" "app_server" {
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.private_subnet.id
+  vpc_security_group_ids      = [aws_security_group.app_sg.id]
+  associate_public_ip_address = false
+
+  tags = {
+    Name = "tier-2-app-server"
+  }
+}
